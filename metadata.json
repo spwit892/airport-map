@@ -1,0 +1,6 @@
+{
+  "name": "Airport Cargo Hub Dashboard",
+  "description": "An interactive regional airport map and freight logistics tracking dashboard featuring terminal locations, region groupings, and a cargo operations glossary.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
