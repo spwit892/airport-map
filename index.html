@@ -17,11 +17,11 @@
             flex-direction: column;
         }
         #map {
-            height: 45vh;
+            height: 40vh;
             width: 100%;
         }
         #sidebar {
-            height: 55vh;
+            height: 60vh;
             width: 100%;
             overflow-y: auto;
             -webkit-overflow-scrolling: touch;
@@ -76,69 +76,44 @@
     </div>
 
     <script>
-        // Current base airport dataset
+        // Full Dataset of your regional dispatching airports
         const airports = [
+            // Northeast Corridor
             { code: "JFK", name: "John F. Kennedy Intl", city: "New York", state: "NY", region: "northeast", lat: 40.6413, lng: -73.7781 },
+            { code: "LGA", name: "LaGuardia Airport", city: "New York", state: "NY", region: "northeast", lat: 40.7769, lng: -73.8740 },
             { code: "EWR", name: "Newark Liberty Intl", city: "Newark", state: "NJ", region: "northeast", lat: 40.6895, lng: -74.1745 },
+            { code: "BOS", name: "Boston Logan Intl", city: "Boston", state: "MA", region: "northeast", lat: 42.3656, lng: -71.0096 },
+            { code: "ALB", name: "Albany International", city: "Albany", state: "NY", region: "northeast", lat: 42.7483, lng: -73.8017 },
+            { code: "BDL", name: "Bradley International", city: "Windsor Locks", state: "CT", region: "northeast", lat: 41.9389, lng: -72.6832 },
+            { code: "MHT", name: "Manchester-Boston Regional", city: "Manchester", state: "NH", region: "northeast", lat: 42.9298, lng: -71.4357 },
             { code: "PVD", name: "Rhode Island T.F. Green", city: "Warwick", state: "RI", region: "northeast", lat: 41.7240, lng: -71.4280 },
+
+            // Mid-Atlantic Hubs
+            { code: "PHL", name: "Philadelphia Intl", city: "Philadelphia", state: "PA", region: "midatlantic", lat: 39.8721, lng: -75.2424 },
+            { code: "BUF", name: "Buffalo Niagara Intl", city: "Buffalo", state: "NY", region: "midatlantic", lat: 42.9405, lng: -78.7322 },
+            { code: "IAD", name: "Dulles International", city: "Dulles", state: "VA", region: "midatlantic", lat: 38.9531, lng: -77.4565 },
+            { code: "DCA", name: "Ronald Reagan Washington National", city: "Arlington", state: "VA", region: "midatlantic", lat: 38.8512, lng: -77.0402 },
             { code: "BWI", name: "Baltimore/Washington Intl", city: "Baltimore", state: "MD", region: "midatlantic", lat: 39.1774, lng: -76.6684 },
             { code: "ROA", name: "Roanoke-Blacksburg Regional", city: "Roanoke", state: "VA", region: "midatlantic", lat: 37.3255, lng: -79.9754 },
-            { code: "RDU", name: "Raleigh-Durham Intl", city: "Raleigh", state: "NC", region: "southeast", lat: 35.8801, lng: -78.7880 },
-            { code: "ATL", name: "Hartsfield-Jackson Intl", city: "Atlanta", state: "GA", region: "southeast", lat: 33.6407, lng: -84.4277 },
-            { code: "CHS", name: "Charleston International", city: "Charleston", state: "SC", region: "southeast", lat: 32.8986, lng: -80.0405 }
+            { code: "RDU", name: "Raleigh-Durham Intl", city: "Raleigh", state: "NC", region: "midatlantic", lat: 35.8801, lng: -78.7880 },
+            { code: "PIT", name: "Pittsburgh International", city: "Pittsburgh", state: "PA", region: "midatlantic", lat: 40.4915, lng: -80.2327 },
+            { code: "RIC", name: "Richmond International", city: "Richmond", state: "VA", region: "midatlantic", lat: 37.5052, lng: -77.3197 },
+
+            // Southeast Hubs
+            { code: "MIA", name: "Miami International", city: "Miami", state: "FL", region: "southeast", lat: 25.7959, lng: -80.2871 },
+            { code: "FLL", name: "Fort Lauderdale-Hollywood Intl", city: "Fort Lauderdale", state: "FL", region: "southeast", lat: 26.0742, lng: -80.1506 },
+            { code: "CHS", name: "Charleston International", city: "Charleston", state: "SC", region: "southeast", lat: 32.8986, lng: -80.0405 },
+            { code: "GSP", name: "Greenville-Spartanburg Intl", city: "Greer", state: "SC", region: "southeast", lat: 34.8956, lng: -82.2189 }
         ];
 
-        // Initialize Map centered over East Coast US
+        // Initialize Map centered over the East Coast area
         const map = L.map('map', { zoomControl: false }).setView([38.5, -78.0], 5);
         
-        // Crisp, bright Light Tile Layer (CartoDB Positron)
+        // High-contrast clean Light Tile Layer (CartoDB Positron style)
         L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
             attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
         }).addTo(map);
 
         L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-        // Phone Voice Speaker Engine
-        function speakAirport(city, state) {
-            if ('speechSynthesis' in window) {
-                window.speechSynthesis.cancel(); 
-                const utterance = new SpeechSynthesisUtterance(`${city}, ${state}`);
-                utterance.lang = 'en-US';
-                utterance.rate = 0.85; 
-                window.speechSynthesis.speak(utterance);
-            }
-        }
-
-        // Build Light UI elements
-        airports.forEach(airport => {
-            const marker = L.marker([airport.lat, airport.lng]).addTo(map);
-            marker.bindPopup(`<b class="text-slate-900">${airport.code}</b><br/><span class="text-slate-600">${airport.city}, ${airport.state}</span>`);
-
-            const targetContainer = document.getElementById(`region-${airport.region}`);
-            if (targetContainer) {
-                const card = document.createElement('button');
-                card.className = "w-full text-left bg-slate-50 hover:bg-slate-100 border border-slate-200 active:border-slate-300 p-3 rounded-lg transition flex items-center justify-between group focus:outline-none focus:ring-1 focus:ring-slate-400 min-h-[48px] shadow-sm";
-                
-                card.innerHTML = `
-                    <div>
-                        <div class="flex items-center gap-2">
-                            <span class="font-mono font-bold text-slate-900 tracking-wide">${airport.code}</span>
-                            <span class="text-xs text-slate-600 font-medium">${airport.city}, ${airport.state}</span>
-                        </div>
-                        <div class="text-xs text-slate-400 truncate max-w-[220px] mt-0.5">${airport.name}</div>
-                    </div>
-                    <span class="text-slate-400 group-hover:text-slate-600 transition text-lg font-bold">🔊</span>
-                `;
-
-                card.addEventListener('click', () => {
-                    map.flyTo([airport.lat, airport.lng], 10, { duration: 1.2 });
-                    marker.openPopup();
-                    speakAirport(airport.city, airport.state);
-                });
-
-                targetContainer.appendChild(card);
-            }
-        });
-    </script>
-</body>
-</html>
+        // Phone
