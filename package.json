@@ -1,35 +1,254 @@
-{
-  "name": "react-example",
-  "private": true,
-  "version": "0.0.0",
-  "type": "module",
-  "scripts": {
-    "dev": "vite --port=3000 --host=0.0.0.0",
-    "build": "vite build",
-    "preview": "vite preview",
-    "clean": "rm -rf dist server.js",
-    "lint": "tsc --noEmit"
-  },
-  "dependencies": {
-    "@google/genai": "^2.4.0",
-    "@tailwindcss/vite": "^4.1.14",
-    "@vitejs/plugin-react": "^5.0.4",
-    "lucide-react": "^0.546.0",
-    "react": "^19.0.1",
-    "react-dom": "^19.0.1",
-    "vite": "^6.2.3",
-    "express": "^4.21.2",
-    "dotenv": "^17.2.3",
-    "motion": "^12.23.24"
-  },
-  "devDependencies": {
-    "@types/node": "^22.14.0",
-    "autoprefixer": "^10.4.21",
-    "esbuild": "^0.25.0",
-    "tailwindcss": "^4.1.14",
-    "tsx": "^4.21.0",
-    "typescript": "~5.8.2",
-    "vite": "^6.2.3",
-    "@types/express": "^4.17.21"
-  }
-}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Regional Airport Logistics Dashboard</title>
+    
+    <!-- Ultra-stable, high-performance Tailwind CSS engine -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Leaflet Map Assets -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <style>
+        /* Essential base heights handled for cross-browser viewports */
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+        /* Hide default leaflet icon shadow shifts */
+        .airport-marker {
+            background: none !important;
+            border: none !important;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900 antialiased flex flex-col h-screen overflow-hidden">
+
+    <!-- Premium Dashboard Top Header -->
+    <header class="bg-white border-b border-slate-200 px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 shrink-0 shadow-sm z-10">
+        <div>
+            <h1 class="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">Airport Logistics Tracker</h1>
+            <p class="text-xs sm:text-sm text-slate-500 mt-0.5">Tap any airport card to pan the tracking map and stream its spoken pronunciation locator.</p>
+        </div>
+        <div class="flex items-center gap-2 text-xs font-semibold text-slate-400 bg-slate-100 px-3 py-1.5 rounded-full w-max">
+            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> 21 Hubs Active
+        </div>
+    </header>
+    
+    <!-- Core App Interface Layout Container -->
+    <div class="flex flex-col lg:flex-row flex-1 overflow-hidden w-full">
+        
+        <!-- Live Tracking Map Viewport -->
+        <div class="w-full lg:w-[65%] h-[40vh] lg:h-full bg-slate-200 relative order-1 lg:order-1">
+            <div id="map" class="w-full h-full"></div>
+        </div>
+        
+        <!-- Logistics Control Sidebar Panel -->
+        <aside class="w-full lg:w-[35%] h-[60vh] lg:h-full bg-white border-t lg:border-t-0 lg:border-l border-slate-200 overflow-y-auto p-4 sm:p-5 flex flex-col gap-6 order-2 lg:order-2 shadow-inner">
+            
+            <!-- Northeast Zone Group -->
+            <div class="region-section region-northeast">
+                <div class="bg-indigo-50 border border-indigo-100 text-indigo-700 text-xs font-bold px-3 py-1.5 rounded-md mb-3 uppercase tracking-wider text-center lg:text-left">
+                    Northeast Corridor
+                </div>
+                <div id="northeast-airports" class="flex flex-col gap-2.5"></div>
+            </div>
+            
+            <!-- Mid-Atlantic Zone Group -->
+            <div class="region-section region-midatlantic">
+                <div class="bg-purple-50 border border-purple-100 text-purple-700 text-xs font-bold px-3 py-1.5 rounded-md mb-3 uppercase tracking-wider text-center lg:text-left">
+                    Mid-Atlantic Hubs
+                </div>
+                <div id="midatlantic-airports" class="flex flex-col gap-2.5"></div>
+            </div>
+            
+            <!-- Southeast Zone Group -->
+            <div class="region-section region-southeast">
+                <div class="bg-teal-50 border border-teal-100 text-teal-800 text-xs font-bold px-3 py-1.5 rounded-md mb-3 uppercase tracking-wider text-center lg:text-left">
+                    Southeast Hubs
+                </div>
+                <div id="southeast-airports" class="flex flex-col gap-2.5"></div>
+            </div>
+            
+        </aside>
+    </div>
+    
+    <script>
+        // Full Embedded Regional Flight Dataset
+        const airports = [
+            // Northeast Corridor
+            { code: "JFK", name: "John F. Kennedy Intl", city: "New York", state: "NY", region: "northeast", lat: 40.6413, lng: -73.7781 },
+            { code: "LGA", name: "LaGuardia Airport", city: "New York", state: "NY", region: "northeast", lat: 40.7769, lng: -73.8740 },
+            { code: "EWR", name: "Newark Liberty Intl", city: "Newark", state: "NJ", region: "northeast", lat: 40.6895, lng: -74.1745 },
+            { code: "BOS", name: "Boston Logan Intl", city: "Boston", state: "MA", region: "northeast", lat: 42.3656, lng: -71.0096 },
+            { code: "ALB", name: "Albany International", city: "Albany", state: "NY", region: "northeast", lat: 42.7483, lng: -73.8017 },
+            { code: "BDL", name: "Bradley International", city: "Windsor Locks", state: "CT", region: "northeast", lat: 41.9389, lng: -72.6832 },
+            { code: "MHT", name: "Manchester-Boston Regional", city: "Manchester", state: "NH", region: "northeast", lat: 42.9298, lng: -71.4357 },
+            { code: "PVD", name: "Rhode Island T.F. Green", city: "Warwick", state: "RI", region: "northeast", lat: 41.7240, lng: -71.4280 },
+
+            // Mid-Atlantic Hubs
+            { code: "PHL", name: "Philadelphia Intl", city: "Philadelphia", state: "PA", region: "midatlantic", lat: 39.8721, lng: -75.2424 },
+            { code: "BUF", name: "Buffalo Niagara Intl", city: "Buffalo", state: "NY", region: "midatlantic", lat: 42.9405, lng: -78.7322 },
+            { code: "IAD", name: "Dulles International", city: "Dulles", state: "VA", region: "midatlantic", lat: 38.9531, lng: -77.4565 },
+            { code: "DCA", name: "Ronald Reagan Washington National", city: "Arlington", state: "VA", region: "midatlantic", lat: 38.8512, lng: -77.0402 },
+            { code: "BWI", name: "Baltimore/Washington Intl", city: "Baltimore", state: "MD", region: "midatlantic", lat: 39.1774, lng: -76.6684 },
+            { code: "ROA", name: "Roanoke-Blacksburg Regional", city: "Roanoke", state: "VA", region: "midatlantic", lat: 37.3255, lng: -79.9754 },
+            { code: "RDU", name: "Raleigh-Durham Intl", city: "Raleigh", state: "NC", region: "midatlantic", lat: 35.8801, lng: -78.7880 },
+            { code: "PIT", name: "Pittsburgh International", city: "Pittsburgh", state: "PA", region: "midatlantic", lat: 40.4915, lng: -80.2327 },
+            { code: "RIC", name: "Richmond International", city: "Richmond", state: "VA", region: "midatlantic", lat: 37.5052, lng: -77.3197 },
+
+            // Southeast Hubs
+            { code: "MIA", name: "Miami International", city: "Miami", state: "FL", region: "southeast", lat: 25.7959, lng: -80.2871 },
+            { code: "FLL", name: "Fort Lauderdale-Hollywood Intl", city: "Fort Lauderdale", state: "FL", region: "southeast", lat: 26.0742, lng: -80.1506 },
+            { code: "CHS", name: "Charleston International", city: "Charleston", state: "SC", region: "southeast", lat: 32.8986, lng: -80.0405 },
+            { code: "GSP", name: "Greenville-Spartanburg Intl", city: "Greer", state: "SC", region: "southeast", lat: 34.8956, lng: -82.2189 }
+        ];
+        
+        let markers = {};
+        let currentSelectedAirport = null;
+        
+        // Initialize Map Viewport centered directly along US Atlantic Corridor
+        const map = L.map('map', { zoomControl: false }).setView([38.8, -76.5], 6);
+        
+        // Stable, crisp Light Canvas map base layer
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap &copy; CARTO',
+            maxZoom: 18
+        }).addTo(map);
+
+        L.control.zoom({ position: 'bottomright' }).addTo(map);
+        
+        // Coordinated color palette configuration matching the sidebar banners
+        const regionColors = {
+            'northeast': '#4f46e5',   // Indigo 600
+            'midatlantic': '#9333ea', // Purple 600
+            'southeast': '#0d9488'   // Teal 600
+        };
+        
+        // Custom High-End Minimal SVG Map Pin Generator
+        function createMarkerIcon(color, code) {
+            return L.divIcon({
+                html: `
+                    <div class="relative group flex items-center justify-center">
+                        <div class="absolute w-8 h-8 rounded-full opacity-20 animate-ping" style="background-color: ${color};"></div>
+                        <div class="w-7 h-7 rounded-full shadow-md flex items-center justify-center font-mono font-bold text-[10px] text-white border-2 border-white transition-transform transform group-hover:scale-110 active:scale-95" style="background-color: ${color};">
+                            ${code.substring(0,2)}
+                        </div>
+                    </div>`,
+                iconSize: [32, 32],
+                className: 'airport-marker'
+            });
+        }
+        
+        // Assemble UI Layout components and Bind Interactive Elements
+        function initializeAirports() {
+            airports.forEach(airport => {
+                // Initialize clean vector map pin
+                const marker = L.marker([airport.lat, airport.lng], {
+                    icon: createMarkerIcon(regionColors[airport.region], airport.code)
+                }).addTo(map);
+                
+                // Formulate modern popup view elements
+                const popupContent = `
+                    <div class="p-1 font-sans">
+                        <div class="text-xs font-mono font-bold uppercase tracking-wider text-slate-400">Airport Core Node</div>
+                        <div class="text-base font-black text-slate-900 mt-0.5">${airport.code}</div>
+                        <div class="text-xs text-slate-700 font-medium mt-0.5">${airport.name}</div>
+                        <div class="text-[11px] text-slate-400 mt-1">📍 ${airport.city}, ${airport.state}</div>
+                    </div>
+                `;
+                
+                marker.bindPopup(popupContent);
+                markers[airport.code] = { marker: marker, airport: airport };
+                
+                // Click handler running directly from the map pins
+                marker.on('click', () => {
+                    selectAirport(airport.code);
+                });
+            });
+            
+            // Build and insert custom HTML action cards for every airport container
+            const regions = ['northeast', 'midatlantic', 'southeast'];
+            regions.forEach(region => {
+                const regionAirports = airports.filter(a => a.region === region);
+                const container = document.getElementById(`${region}-airports`);
+                
+                container.innerHTML = regionAirports.map(airport => `
+                    <button class="airport-card w-full text-left bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 p-3.5 rounded-xl transition-all duration-200 flex items-center justify-between group focus:outline-none focus:ring-2 focus:ring-slate-200 min-h-[58px] shadow-sm" data-code="${airport.code}">
+                        <div class="truncate pr-2">
+                            <div class="flex items-center gap-2">
+                                <span class="font-mono font-bold text-slate-900 tracking-wide">${airport.code}</span>
+                                <span class="w-1 h-1 rounded-full bg-slate-300"></span>
+                                <span class="text-xs text-slate-600 font-semibold truncate">${airport.city}, ${airport.state}</span>
+                            </div>
+                            <div class="text-[11px] text-slate-400 font-medium truncate mt-0.5">${airport.name}</div>
+                        </div>
+                        <span class="text-slate-300 group-hover:text-slate-500 transition-colors duration-150 text-base font-bold pl-2 shrink-0">🔊</span>
+                    </button>
+                `).join('');
+                
+                // Attach functional click event loops down directly to sidebar lists
+                container.querySelectorAll('.airport-card').forEach(card => {
+                    card.addEventListener('click', () => {
+                        selectAirport(card.dataset.code);
+                    });
+                });
+            });
+        }
+        
+        // Native Speech Synthesizer Module
+        function speakAirport(airport) {
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+                const utterance = new SpeechSynthesisUtterance(`${airport.city}, ${airport.state}`);
+                utterance.lang = 'en-US';
+                utterance.rate = 0.85; // Natural speed metric adjustments
+                window.speechSynthesis.speak(utterance);
+            }
+        }
+        
+        // Navigation Engine and Selection State Handler
+        function selectAirport(code) {
+            // Remove active display filters from historical target selections
+            if (currentSelectedAirport) {
+                document.querySelectorAll(`[data-code="${currentSelectedAirport}"]`).forEach(card => {
+                    card.className = "airport-card w-full text-left bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 p-3.5 rounded-xl transition-all duration-200 flex items-center justify-between group focus:outline-none focus:ring-2 focus:ring-slate-200 min-h-[58px] shadow-sm";
+                });
+            }
+            
+            // Apply blue interactive glowing ring borders to the active selector card
+            currentSelectedAirport = code;
+            document.querySelectorAll(`[data-code="${code}"]`).forEach(card => {
+                card.className = "airport-card w-full text-left bg-blue-50/70 border-2 border-blue-500 p-3.5 rounded-xl transition-all duration-200 flex items-center justify-between group focus:outline-none min-h-[58px] shadow-md relative ring-4 ring-blue-500/10";
+                
+                // Automatically scroll screen down straight to chosen sidebar element contextually
+                card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            });
+            
+            const airportData = markers[code].airport;
+            
+            // Execute automated flight cinematic zoom movement
+            map.flyTo([airportData.lat, airportData.lng], 10, {
+                duration: 1.2
+            });
+            
+            // Display clean map overlay summary context module
+            setTimeout(() => {
+                markers[code].marker.openPopup();
+            }, 250);
+            
+            // Activate voice sound streaming modules
+            speakAirport(airportData);
+        }
+        
+        // Safe DOM Listener Initialization Block
+        window.addEventListener('DOMContentLoaded', () => {
+            initializeAirports();
+        });
+    </script>
+</body>
+</html>
