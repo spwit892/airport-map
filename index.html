@@ -1,21 +1,143 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <meta name="theme-color" content="#0f172a" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <title>Airport Cargo Logistics Dashboard</title>
-    <!-- Leaflet.js Map Assets -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-    <!-- Web App Manifest -->
-    <link rel="manifest" href="/manifest.json" />
-  </head>
-  <body class="bg-slate-950 text-slate-100 antialiased overflow-hidden">
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
-</html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Regional Airport Dashboard</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
+    <style>
+        body {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        #map {
+            height: 45vh;
+            width: 100%;
+        }
+        #sidebar {
+            height: 55vh;
+            width: 100%;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        @media (min-width: 769px) {
+            body {
+                flex-direction: row;
+            }
+            #map {
+                height: 100vh;
+                width: 65%;
+            }
+            #sidebar {
+                height: 100vh;
+                width: 35%;
+            }
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 antialiased">
+
+    <div id="map"></div>
+
+    <div id="sidebar" class="p-4 border-t border-slate-800 md:border-t-0 md:border-r md:border-slate-800 flex flex-col gap-6">
+        
+        <div>
+            <h1 class="text-xl font-bold tracking-tight text-white">Airport Logistics Tracker</h1>
+            <p class="text-xs text-slate-400 mt-1">Tap any airport to pan the map and hear its proper pronunciation.</p>
+        </div>
+
+        <div>
+            <div class="bg-blue-900/50 border border-blue-700 text-blue-300 text-xs font-semibold px-3 py-1.5 rounded mb-2 uppercase tracking-wider">
+                Northeast Corridor
+            </div>
+            <div class="flex flex-col gap-2" id="region-northeast"></div>
+        </div>
+
+        <div>
+            <div class="bg-purple-900/50 border border-purple-700 text-purple-300 text-xs font-semibold px-3 py-1.5 rounded mb-2 uppercase tracking-wider">
+                Mid-Atlantic Hubs
+            </div>
+            <div class="flex flex-col gap-2" id="region-midatlantic"></div>
+        </div>
+
+        <div>
+            <div class="bg-emerald-900/50 border border-emerald-700 text-emerald-300 text-xs font-semibold px-3 py-1.5 rounded mb-2 uppercase tracking-wider">
+                Southeast Hubs
+            </div>
+            <div class="flex flex-col gap-2" id="region-southeast"></div>
+        </div>
+
+    </div>
+
+    <script>
+        // Airport dataset
+        const airports = [
+            { code: "JFK", name: "John F. Kennedy Intl", city: "New York", state: "NY", region: "northeast", lat: 40.6413, lng: -73.7781 },
+            { code: "EWR", name: "Newark Liberty Intl", city: "Newark", state: "NJ", region: "northeast", lat: 40.6895, lng: -74.1745 },
+            { code: "PVD", name: "Rhode Island T.F. Green", city: "Warwick", state: "RI", region: "northeast", lat: 41.7240, lng: -71.4280 },
+            { code: "BWI", name: "Baltimore/Washington Intl", city: "Baltimore", state: "MD", region: "midatlantic", lat: 39.1774, lng: -76.6684 },
+            { code: "ROA", name: "Roanoke-Blacksburg Regional", city: "Roanoke", state: "VA", region: "midatlantic", lat: 37.3255, lng: -79.9754 },
+            { code: "RDU", name: "Raleigh-Durham Intl", city: "Raleigh", state: "NC", region: "southeast", lat: 35.8801, lng: -78.7880 },
+            { code: "ATL", name: "Hartsfield-Jackson Intl", city: "Atlanta", state: "GA", region: "southeast", lat: 33.6407, lng: -84.4277 },
+            { code: "CHS", name: "Charleston International", city: "Charleston", state: "SC", region: "southeast", lat: 32.8986, lng: -80.0405 }
+        ];
+
+        // Initialize Map
+        const map = L.map('map', { zoomControl: false }).setView([38.5, -78.0], 5);
+        
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
+        }).addTo(map);
+
+        L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+        // Text-to-Speech Engine
+        function speakAirport(city, state) {
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel(); 
+                const utterance = new SpeechSynthesisUtterance(`${city}, ${state}`);
+                utterance.lang = 'en-US';
+                utterance.rate = 0.85; // Natural pacing
+                window.speechSynthesis.speak(utterance);
+            }
+        }
+
+        // Generate UI items
+        airports.forEach(airport => {
+            const marker = L.marker([airport.lat, airport.lng]).addTo(map);
+            marker.bindPopup(`<b class="text-slate-900">${airport.code}</b><br/>${airport.city}`);
+
+            const targetContainer = document.getElementById(`region-${airport.region}`);
+            if (targetContainer) {
+                const card = document.createElement('button');
+                card.className = "w-full text-left bg-slate-900 hover:bg-slate-800 border border-slate-800 active:border-slate-600 p-3 rounded-lg transition flex items-center justify-between group focus:outline-none focus:ring-1 focus:ring-slate-500 min-h-[48px]";
+                
+                card.innerHTML = `
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="font-mono font-bold text-white tracking-wide">${airport.code}</span>
+                            <span class="text-xs text-slate-400 font-medium">${airport.city}, ${airport.state}</span>
+                        </div>
+                        <div class="text-xs text-slate-500 truncate max-w-[220px] mt-0.5">${airport.name}</div>
+                    </div>
+                    <span class="text-slate-600 group-hover:text-slate-400 transition text-lg font-bold">🔊</span>
+                `;
+
+                card.addEventListener('click', () => {
+                    map.flyTo([airport.lat, airport.lng], 10, { duration: 1.2 });
+                    marker.openPopup();
+                    speakAirport(airport.city, airport.state);
+                });
+
+                targetContainer.appendChild(card);
+            }
+        });
+    </script>
+</body>
+</html>
